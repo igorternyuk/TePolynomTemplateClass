@@ -23,7 +23,7 @@ int main()
 {
     //std::vector<double> vct2 = {9, -5, 1};
     //cout << createVector().at(0) << std::endl;
-    Polynom<double> pol1({48398, -5, 14, -3, -20});
+    Polynom<double> pol1({-17, 0, +2});
     /*cout << pol1.convertToString(6) << endl;
     cout << "a0 = 5 && a4 = 17" << endl;
     pol1[0] = 5;
@@ -38,7 +38,7 @@ int main()
         cout << ex.what() << endl;
     }*/
     double root = 0;
-    cout << "Is root found: "  << pol1.rootInAnInterval(0, 10, 0.00001, root) << endl;
+    cout << "Is root found: "  << pol1.rootInAnInterval(1, 500, 0.0001, root) << endl;
     cout << "root = " << root << endl;
     cout << pol1[0] << endl;
     Polynom<double> pol2{9, -5, 4, 7, 10};

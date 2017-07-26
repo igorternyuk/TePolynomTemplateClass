@@ -13,6 +13,13 @@
 #include <stdexcept>
 
 namespace iat {
+    enum class PolynomRootSearchMethod
+    {
+        BISECTION,
+        CHORDS,
+        TANGENTS,
+        COMBINED
+    };
 
 template<class T>
     class Polynom
@@ -34,13 +41,13 @@ template<class T>
         bool setValueAt(int i, const T&value);               // Установить значение коэффициента элемента степени i
         T getCoefAt(int i) const;                            // Считать значение коэффициента элемента степени i
         int degree() const;                               // Получить степень полинома
-        T calculateValue(const T&) const;
+        T calcVal(const T&) const;
         Polynom power(int) const;
         std::string convertToString(int prec) const;
         void showInConsole(int prec) const;
         void writeToFile(std::string fileName, int prec) const;
-        bool rootInAnInterval(T leftLimit, T rightLimit,
-                              double eps, T &root);
+        bool rootInAnInterval(T leftLimit, T rightLimit, double eps, T &root,
+                              PolynomRootSearchMethod method = PolynomRootSearchMethod::BISECTION);
         Polynom firstDerivative();
         Polynom derivative(int order);
         T derivativeAtPoint(int order, T arg);
@@ -185,7 +192,7 @@ template<class T>
     }
 
     template<class T>
-    T Polynom<T>::calculateValue(const T &value) const
+    T Polynom<T>::calcVal(const T &value) const
     {
         T result = static_cast<T>(0);
         for(int i = 0; i <= _degree; ++i)
@@ -239,28 +246,56 @@ template<class T>
     }
 
     template<class T>
-    bool Polynom<T>::rootInAnInterval(T leftLimit, T rightLimit, double eps, T &root)
+    bool Polynom<T>::rootInAnInterval(T a, T b, double eps,
+                                      T &root, PolynomRootSearchMethod method)
     {
         static int ITERR_LIM = 5000;
-        if(calculateValue(leftLimit) * calculateValue(rightLimit) > 0)
+        if(calcVal(a) * calcVal(b) > 0)
             return false;
-        bool isRootFound = false;
+        if(method != PolynomRootSearchMethod::BISECTION &&
+           derivativeAtPoint(2, a) < 0)
+            std::swap(a, b);
+        T x_next = a;
         int counter = 0;
-        while(!isRootFound)
+        while(true)
         {
-            T x_next = (leftLimit + rightLimit) / 2;
-            if(calculateValue(x_next) * calculateValue(leftLimit) > 0)
-                leftLimit = x_next;
-            if(calculateValue(x_next) * calculateValue(rightLimit) > 0)
-                rightLimit = x_next;
-            if(fabs(leftLimit - rightLimit) < eps)
+            if(method == PolynomRootSearchMethod::BISECTION ||
+               method == PolynomRootSearchMethod::COMBINED)
             {
-                isRootFound = true;
-                root = x_next;
-                return true;
+                if(method == PolynomRootSearchMethod::BISECTION)
+                {
+                    T c = (a + b) / 2;
+                    if(calcVal(c) * calcVal(a) > 0)
+                        a = c;
+                    if(calcVal(c) * calcVal(b) > 0)
+                        b = c;
+                }
+                else
+                {
+                    a -= calcVal(a) / derivativeAtPoint(1, a);
+                    b -= calcVal(b) / (calcVal(b) - calcVal(a)) * (b - a);
+                }
+                if(fabs(a - b) < eps)
+                {
+                    root = 0.5 * (a + b);
+                    return true;
+                }
+            }
+            else if(method == PolynomRootSearchMethod::CHORDS ||
+                    method == PolynomRootSearchMethod::TANGENTS)
+            {
+                a = x_next;
+                x_next = method == PolynomRootSearchMethod::CHORDS ?
+                         a - calcVal(a) / (calcVal(b) - calcVal(a)) * (b - a):
+                         a - calcVal(a) / derivativeAtPoint(1, a);
+                if(fabs(a - x_next) < eps)
+                {
+                    root = x_next;
+                    return true;
+                }
             }
             std::cout << "Iterration number: " << counter << std::endl;
-            if(++counter > ITERR_LIM) return false;
+            if(++counter > ITERR_LIM) break;
         }
         return false;
     }
@@ -293,7 +328,7 @@ template<class T>
     T Polynom<T>::derivativeAtPoint(int order, T arg)
     {
         Polynom<T> der((*this).derivative(order));
-        return der.calculateValue(arg);
+        return der.calcVal(arg);
     }
 
     template<class T>
@@ -310,8 +345,8 @@ template<class T>
     T Polynom<T>::definiteIntegral(T leftLimit, T rightLimit)
     {
         Polynom<T> integral((*this).intergal(0));
-        return integral.calculateValue(rightLimit) -
-               integral.calculateValue(leftLimit);
+        return integral.calcVal(rightLimit) -
+               integral.calcVal(leftLimit);
     }
 
     template<class T>
